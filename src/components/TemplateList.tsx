@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Trash2, Eye, Calendar, User, Edit, Tag } from 'lucide-react';
+import { FileText, Trash2, Eye, Calendar, User, Edit } from 'lucide-react';
 import { TemplatePreview } from './TemplatePreview';
 import { EditTemplate } from './EditTemplate';
 
@@ -33,8 +33,6 @@ interface Template {
   created_by: string;
   created_at: string;
   updated_at: string;
-  folder_id: string | null;
-  company_name: string | null;
   user_profiles?: {
     email: string;
   };
@@ -42,11 +40,9 @@ interface Template {
 
 interface TemplateListProps {
   onRefresh?: number;
-  folderId?: string | null;
-  companyName?: string | null;
 }
 
-export function TemplateList({ onRefresh, folderId, companyName }: TemplateListProps) {
+export function TemplateList({ onRefresh }: TemplateListProps) {
   const { user, profile } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,26 +70,16 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [onRefresh, folderId]);
+  }, [onRefresh]);
 
   const loadTemplates = async () => {
     try {
       setLoading(true);
-      console.log('Loading templates...', { folderId, companyName });
-      
-      let query = supabase
+      console.log('Loading templates...');
+      const { data, error } = await supabase
         .from('templates')
         .select('*')
         .order('created_at', { ascending: false });
-
-      // Filter by folder if specified
-      if (folderId) {
-        query = query.eq('folder_id', folderId);
-      } else if (companyName) {
-        query = query.eq('company_name', companyName);
-      }
-
-      const { data, error } = await query;
 
       console.log('Templates query result:', { data, error, count: data?.length });
 
@@ -193,7 +179,7 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            {folderId ? 'Folder Templates' : companyName ? `${companyName} Templates` : (profile?.is_admin ? 'All Templates' : 'My Templates')}
+            {profile?.is_admin ? 'All Templates' : 'My Templates'}
           </h2>
           <p className="text-sm text-gray-600 mt-1">
             {templates.length} template{templates.length !== 1 ? 's' : ''}
@@ -204,10 +190,8 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
         {templates.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600">No templates found</p>
-            <p className="text-sm text-gray-500 mt-1">
-              {folderId ? 'This folder is empty' : companyName ? `No templates for ${companyName}` : 'Create your first template to get started'}
-            </p>
+            <p className="text-gray-600">No templates yet</p>
+            <p className="text-sm text-gray-500 mt-1">Create your first template to get started</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -244,7 +228,7 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
                       {template.content}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(template.created_at).toLocaleDateString()}
@@ -253,12 +237,6 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
                         <div className="flex items-center gap-1">
                           <User className="w-3.5 h-3.5" />
                           {template.user_profiles.email}
-                        </div>
-                      )}
-                      {template.company_name && (
-                        <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                          <Tag className="w-3.5 h-3.5" />
-                          {template.company_name}
                         </div>
                       )}
                       {template.has_buttons && (
@@ -335,12 +313,6 @@ export function TemplateList({ onRefresh, folderId, companyName }: TemplateListP
                   >
                     {selectedTemplate.status}
                   </span>
-                  {selectedTemplate.company_name && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
-                      <Tag className="w-4 h-4 mr-1" />
-                      {selectedTemplate.company_name}
-                    </span>
-                  )}
                 </div>
               </div>
 

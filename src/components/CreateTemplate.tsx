@@ -58,11 +58,9 @@ interface Button {
 interface CreateTemplateProps {
   onClose: () => void;
   onSuccess: () => void;
-  folderId?: string | null;
-  companyName?: string | null;
 }
 
-export function CreateTemplate({ onClose, onSuccess, folderId, companyName }: CreateTemplateProps) {
+export function CreateTemplate({ onClose, onSuccess }: CreateTemplateProps) {
   const { user } = useAuth();
   const [category, setCategory] = useState<Category>('Marketing');
   const [subcategory, setSubcategory] = useState('Default');
@@ -96,112 +94,6 @@ export function CreateTemplate({ onClose, onSuccess, folderId, companyName }: Cr
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Add state for folder selection
-  const [folders, setFolders] = useState<any[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(folderId || null);
-  const [selectedCompanyName, setSelectedCompanyName] = useState<string | null>(companyName || null);
-  const [loadingFolders, setLoadingFolders] = useState(true);
-
-  // Load folders when component mounts
-  useEffect(() => {
-    loadFolders();
-  }, []);
-
-  const loadFolders = async () => {
-    if (!user) return;
-    
-    try {
-      setLoadingFolders(true);
-      const { data, error } = await supabase
-        .from('folders')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('name');
-
-      if (error) throw error;
-      setFolders(data || []);
-      
-      // If a folderId was passed in and we have folders, set the selected folder
-      if (folderId && data && data.length > 0) {
-        const folder = data.find(f => f.id === folderId);
-        if (folder) {
-          setSelectedFolderId(folderId);
-          setSelectedCompanyName(folder.company_name);
-        }
-      } else if (data && data.length > 0) {
-        // If no folderId was passed but we have folders, select the first one
-        setSelectedFolderId(data[0].id);
-        setSelectedCompanyName(data[0].company_name);
-      } else if (data && data.length === 0) {
-        // If no folders exist, create a default one
-        await createDefaultFolder();
-      }
-    } catch (err) {
-      console.error('Error loading folders:', err);
-    } finally {
-      setLoadingFolders(false);
-    }
-  };
-
-  const createDefaultFolder = async () => {
-    if (!user) return;
-    
-    try {
-      // Check if a "generalized" folder already exists
-      const { data: existingFolders, error: fetchError } = await supabase
-        .from('folders')
-        .select('*')
-        .eq('created_by', user.id)
-        .eq('name', 'generalized')
-        .limit(1);
-
-      if (fetchError) throw fetchError;
-
-      // If a generalized folder already exists, use it
-      if (existingFolders && existingFolders.length > 0) {
-        setFolders(existingFolders);
-        setSelectedFolderId(existingFolders[0].id);
-        setSelectedCompanyName(existingFolders[0].company_name);
-        return;
-      }
-
-      // Otherwise, create a new one
-      const { data, error } = await supabase
-        .from('folders')
-        .insert({
-          name: 'generalized',
-          company_name: 'General',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setFolders([data]);
-      setSelectedFolderId(data.id);
-      setSelectedCompanyName(data.company_name);
-    } catch (err: any) {
-      console.error('Error creating default folder:', err);
-      setError(err.message || 'Failed to create default folder');
-    }
-  };
-
-  const handleFolderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const folderId = e.target.value;
-    if (folderId === '') {
-      setSelectedFolderId(null);
-      setSelectedCompanyName(null);
-      return;
-    }
-    
-    const folder = folders.find(f => f.id === folderId);
-    if (folder) {
-      setSelectedFolderId(folder.id);
-      setSelectedCompanyName(folder.company_name);
-    }
-  };
 
   const handleCategoryChange = (newCategory: Category) => {
     setCategory(newCategory);
@@ -345,8 +237,6 @@ export function CreateTemplate({ onClose, onSuccess, folderId, companyName }: Cr
         signature_hash: category === 'Authentication' ? signatureHash : null,
         status: 'draft',
         created_by: user.id,
-        folder_id: selectedFolderId,
-        company_name: selectedCompanyName,
       });
 
       if (insertError) throw insertError;
@@ -378,32 +268,6 @@ export function CreateTemplate({ onClose, onSuccess, folderId, companyName }: Cr
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           <div className="space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto pr-4">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Add folder selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">Folder</label>
-                {loadingFolders ? (
-                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                    <div className="animate-pulse h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedFolderId || ''}
-                    onChange={handleFolderChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                  >
-                    <option value="">Select a folder</option>
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name} ({folder.company_name})
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {selectedCompanyName && (
-                  <p className="text-xs text-gray-500 mt-1">Company: {selectedCompanyName}</p>
-                )}
-              </div>
-
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-3">Category</label>
                 <div className="grid grid-cols-3 gap-3">
